@@ -1,0 +1,74 @@
+apiVersion: apps/v1beta2
+kind: Deployment
+metadata:
+  name: eth-miner-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: eth-miner
+  template:
+    metadata:
+      labels:
+        app: eth-miner
+    spec:
+      initContainers:
+      - name: init-keystore
+        image: busybox
+        command:
+        - /bin/sh
+        - -c
+        - "cp -H /keystore-cm/UTC* /keystore"
+        volumeMounts:
+        - name: keystore-cm
+          mountPath: /keystore-cm
+        - name: keystore
+          mountPath: /keystore
+      - name: init-node
+        image: ethereum/client-go:{{.Values.imageTag}}
+        args:
+        - --datadir=/data
+        - --keystore=/keystore
+        - init
+        - /etc/config/genesis.json
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        - name: genesis-cm
+          mountPath: /etc/config
+        - name: keystore
+          mountPath: /keystore
+      containers:
+      - name: eth-miner
+        image: ethereum/client-go:{{.Values.imageTag}}
+        args:
+        - --datadir=/data
+        - --keystore=/keystore
+        - --networkid=1000
+        - --rpc
+        - --rpcapi="admin,debug,eth,miner,net,personal,shh,txpool,web3"
+        - --ipcpath=/data/geth.ipc
+        - --nodiscover
+        - --mine
+        - --minerthreads=1
+        - --verbosity=6
+        - --rpccorsdomain="*"
+        - --etherbase=0x7207ad82ae5f6778d738c3f164671f773fddb916
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        - name: keystore
+          mountPath: /keystore
+      volumes:
+      - name: genesis-cm
+        configMap:
+          name: genesis
+      - name: keystore-cm
+        configMap:
+          name: keystore
+      - name: data
+        emptyDir: {}
+      - name: keystore
+        hostPath:
+          path: /tmp/hostpath-provisioner
+          type: Directory
