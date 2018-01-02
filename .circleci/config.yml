@@ -1,0 +1,67 @@
+version: 2
+jobs:
+  build:
+    machine: true
+    environment:
+      JSONPATH: '{range .items[*]}{@.metadata.name}:{range @.status.conditions[*]}{@.type}={@.status};{end}{end}'
+    steps:
+    - checkout
+
+    - run:
+        name: test
+        environment:
+          K8S_VERSION: v1.8.0
+          MINIKUBE_VERSION: v0.24.1
+          CHANGE_MINIKUBE_NONE_USER: true
+          HELM_VERSION: v2.7.2
+        command: |
+          set +x
+
+          # install minikube
+          curl -Lo kubectl https://storage.googleapis.com/kubernetes-release/release/${K8S_VERSION}/bin/linux/amd64/kubectl && chmod +x kubectl && sudo mv kubectl /usr/local/bin/
+          curl -Lo minikube https://storage.googleapis.com/minikube/releases/${MINIKUBE_VERSION}/minikube-linux-amd64 && chmod +x minikube && sudo mv minikube /usr/local/bin/
+          sudo minikube start --vm-driver=none --kubernetes-version=${K8S_VERSION}
+          sudo chown -R $USER $HOME/.kube
+          sudo chgrp -R $USER $HOME/.kube
+          sudo chown -R $USER $HOME/.minikube
+          sudo chgrp -R $USER $HOME/.minikube
+          minikube update-context
+          until kubectl get nodes -o jsonpath="$JSONPATH" 2>&1 | grep "Ready=True"; do sleep 1; done
+
+          # install helm
+          curl -s -Lo helm.tgz https://storage.googleapis.com/kubernetes-helm/helm-${HELM_VERSION}-linux-amd64.tar.gz && tar -zxvf helm.tgz && mv ./linux-amd64/helm . && chmod +x ./helm && sudo mv ./helm /usr/local/bin
+          mkdir -p ~/.helm/plugins/ && cd ~/.helm/plugins/ && git clone https://github.com/app-registry/appr-helm-plugin.git registry && helm registry --help
+          helm init
+          until kubectl get pods -n kube-system -l name=tiller,app=helm -o jsonpath="$JSONPATH" 2>&1 | grep -q "Ready=True"; do kubectl get pods && sleep 1; done
+
+          # install gasmask
+          cd ~/project
+          mkdir -p /tmp/hostpath-provisioner
+          initial_balance=7
+          helm install -n gasmask --set initialBalance=${initial_balance} ./chart
+          until kubectl get pods -l app=eth-miner -o jsonpath="$JSONPATH" 2>&1 | grep -q "Ready=True"; do kubectl get pods && sleep 1; done
+
+          # checks
+          pod_name=$(kubectl get pods -l app=eth-miner | grep eth | cut -d ' ' -f 1)
+          expected_balance="^@^@[31m${initial_balance}[0m"
+          actual_balance=$(kubectl exec ${pod_name} -c eth-miner -t -i -- geth --exec 'eth.getBalance(eth.accounts[0])' attach ipc:///data/geth.ipc | tr -d '[:cntrl:]')
+          if [ "$actual_balance" != "$expected_balance" ]; then
+            echo "unexpected balance, want $expected_balance, got $actual_balance"
+            exit 1
+          fi
+
+    - deploy:
+        working_directory: ~/project/chart
+        command: |
+          if [ "${CIRCLE_BRANCH}" == "master" ]; then
+            changed_files="$(git diff-tree --no-commit-id --name-only -r HEAD)"
+            total=0
+            for file in $changed_files; do
+              if echo "$file" | grep -q "^chart"; then
+                total=$(( total + 1))
+              fi
+            done
+            if [ "$total" -neq "0" ]; then
+              helm registry push --channel=stable quay.io/fgimenez/gasmask
+            fi
+          fi
