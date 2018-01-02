@@ -62,7 +62,7 @@ jobs:
               fi
             done
             if [ "$total" -ne "0" ]; then
-              helm registry login -u $QUAY_USERNAME -p $QUAY_PASSWORD
+              helm registry login --user $QUAY_USERNAME --password $QUAY_PASSWORD
               helm registry push --channel=stable quay.io/fgimenez/gasmask
             fi
           fi
