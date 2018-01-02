@@ -61,7 +61,7 @@ jobs:
                 total=$(( total + 1))
               fi
             done
-            if [ "$total" -neq "0" ]; then
+            if [ "$total" -ne "0" ]; then
               helm registry push --channel=stable quay.io/fgimenez/gasmask
             fi
           fi
