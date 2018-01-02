@@ -53,6 +53,7 @@ jobs:
     - deploy:
         working_directory: ~/project/chart
         command: |
+          set +x
           if [ "${CIRCLE_BRANCH}" == "master" ]; then
             changed_files="$(git diff-tree --no-commit-id --name-only -r HEAD)"
             total=0
@@ -62,6 +63,7 @@ jobs:
               fi
             done
             if [ "$total" -ne "0" ]; then
+              echo $QUAY_USERNAME
               helm registry push --channel=stable quay.io/fgimenez/gasmask
             fi
           fi
