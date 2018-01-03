@@ -11,9 +11,9 @@ EVM, test  your smart contracts or enhacing your delivery pipelines.
 
 For running locally you need:
 
-[minikube][minikube]: let's you run a local kuberentes cluster on a virtual machine.
-[kubectl][kubectl]: command line utility to interact with kubernetes.
-[helm][helm]: package manager for kubernetes, gasmask is a helm package.
+* [minikube][minikube]: let's you run a local kuberentes cluster on a virtual machine.
+* [kubectl][kubectl]: command line utility to interact with kubernetes.
+* [helm][helm]: package manager for kubernetes, gasmask is a helm package.
 
 [minikube]: https://github.com/kubernetes/minikube
 [kubectl]: https://kubernetes.io/docs/tasks/tools/install-kubectl/
@@ -65,3 +65,6 @@ or directly execute a web3 command with:
 ```
 $ kubectl exec ${pod_name} -c eth-miner -t -i -- geth --exec 'eth.getBalance(eth.accounts[0])' attach ipc:///data/geth.ipc
 ```
+For a complete running example take a look at the [CI script][ci-script].
+
+[ci-script]: https://github.com/fgimenez/gasmask/blob/master/.circleci/config.yml#L17
