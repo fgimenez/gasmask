@@ -24,7 +24,8 @@ the requirements it should work on OSX and Windows as well.
 
 # How it works
 
-First you need to spin up your local kubernetes cluster:
+For a complete running example take a look at the [CI script][ci-script]. In order to
+run gasmask locally first you need to spin up your local kubernetes cluster:
 
 ```
 $ minikube start
@@ -65,6 +66,5 @@ or directly execute a web3 command with:
 ```
 $ kubectl exec ${pod_name} -c eth-miner -t -i -- geth --exec 'eth.getBalance(eth.accounts[0])' attach ipc:///data/geth.ipc
 ```
-For a complete running example take a look at the [CI script][ci-script].
 
 [ci-script]: https://github.com/fgimenez/gasmask/blob/master/.circleci/config.yml#L17
